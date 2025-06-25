@@ -39,13 +39,21 @@ def trigger_upload():
     except Exception as e:
         messagebox.showerror("Upload failed!", str(e)) 
 
-# def delete_contact_by_area(area_name):
-#     service = get_google_service()
-#     connections = service.people().connections().list(resourceName='people/me', pageSize=1000, personFields='names').execute()
-#     deleted_count = 0
-#     for person in connections.get('connections',[]):
-#         names = person.get('names', [])
-
+def delete_contact_by_area(area_name):
+    try:
+        service = get_google_service()
+        connections = service.people().connections().list(resourceName='people/me', pageSize=1000, personFields='names').execute()
+        deleted_count = 0
+        for person in connections.get('connections', []):
+            names = person.get('names', [])
+            if names:
+                name = names[0].get("givenName", [])
+                if name.startswith(area_name + " -"):
+                    service.people().deleteContact(resourceName=person["resourceName"]).execute()
+                    deleted_count += 1
+        messagebox.showinfo("Cleanup Complete", f"Deleted {deleted_count} contacts!")
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to delete contacts: {str(e)}")
 
 root = tk.Tk()
 root.title('WhatsApp Contact Uploader')
@@ -60,5 +68,6 @@ area_entry.grid(row=1, column=1, padx=5, pady=5)
 tk.Label(root, text=" ").grid(row=1, column=2)
 
 tk.Button(root, text="Upload Contacts", command=trigger_upload).grid(row=2, column=1, pady=10)   
+tk.Button(root, text="Delete Contacts", command=lambda:delete_contact_by_area(area_entry.get())).grid(row=3, column=1, pady=5)
 
 root.mainloop()
