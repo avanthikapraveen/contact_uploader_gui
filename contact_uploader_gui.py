@@ -1,8 +1,9 @@
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, ttk
 import pandas as pd
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
+import threading
 
 SCOPES = ['https://www.googleapis.com/auth/contacts']
 
@@ -15,11 +16,20 @@ def get_google_service():
 def upload_contacts(file_path, area_name):
     df = pd.read_excel(file_path)
     service = get_google_service()
+    total = len(df)
+    progress_bar['maximum'] = total
     for index, row in df.iterrows():
-        phone = str(row['Phone No']).strip()
+        phone = str(int(float(row['Phone No']))).strip()
         name = f"{area_name} - {phone}"
         contact_body = { "names": [{"givenName": name}], "phoneNumbers": [{"value": phone}]}
-        service.people().createContact(body = contact_body).execute()
+        try:
+            service.people().createContact(body=contact_body).execute()
+        except Exception as e:
+            print(f"Failed to upload contact {name}: {e}")
+        progress_bar['value'] = index + 1
+        status_label.config(text = f"Uploading {index + 1} of {total} Contacts")
+        root.update_idletasks()
+    status_label.config(text = "Upload Complete!")
 
 def browse_file():
     file_path = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx")])
@@ -28,6 +38,10 @@ def browse_file():
         file_entry.insert(0, file_path)
 
 def trigger_upload():
+    upload_thread = threading.Thread(target = run_upload)
+    upload_thread.start()
+
+def run_upload():
     file_path = file_entry.get()
     area_name = area_entry.get()
     if not file_path or not area_name:
@@ -69,5 +83,11 @@ tk.Label(root, text=" ").grid(row=1, column=2)
 
 tk.Button(root, text="Upload Contacts", command=trigger_upload).grid(row=2, column=1, pady=10)   
 tk.Button(root, text="Delete Contacts", command=lambda:delete_contact_by_area(area_entry.get())).grid(row=3, column=1, pady=5)
+
+status_label = tk.Label(root, text = "", width = 30, anchor='center')
+status_label.grid(row=4, column=1, padx = 5, pady = 5)
+progress_bar = ttk.Progressbar(root, orient = 'horizontal', length = 300, mode = 'determinate')
+progress_bar.grid(row = 5, column = 1)
+progress_bar['value'] = 0
 
 root.mainloop()
