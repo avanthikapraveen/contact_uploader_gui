@@ -4,6 +4,7 @@ import pandas as pd
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 import threading
+import re
 spinner_frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
 spinner_running = False
 spinner_index = 0
@@ -22,7 +23,12 @@ def upload_contacts(file_path, area_name):
     total = len(df)
     progress_bar['maximum'] = total
     for index, row in df.iterrows():
-        phone = str(int(float(row['Phone No']))).strip()
+        raw_number = str(row['Phone No'])
+        cleaned_number = re.sub(r'\D', '', raw_number)
+        if len(cleaned_number) == 10:
+            phone = cleaned_number
+        else:
+            continue    
         name = f"{area_name} - {phone}"
         contact_body = { "names": [{"givenName": name}], "phoneNumbers": [{"value": phone}]}
         try:
@@ -33,6 +39,7 @@ def upload_contacts(file_path, area_name):
         status_label.config(text = f"Uploading {index + 1} of {total} Contacts")
         root.update_idletasks()
     status_label.config(text = "Upload Complete!")
+    progress_bar['value'] = 0
 
 def browse_file():
     file_path = filedialog.askopenfilename(filetypes=[("Excel files", "*.xlsx")])
@@ -97,7 +104,7 @@ def delete_contact_by_area(area_name):
     
 
 root = tk.Tk()
-root.title('WhatsApp Contact Uploader')
+root.title('Contact Uploader')
 tk.Label(root, text="Excel file:").grid(row=0, column=0, padx=5, pady=5, sticky='e')
 file_entry = tk.Entry(root, width = 40)
 file_entry.grid(row=0, column=1, padx=5, pady=5)
@@ -114,7 +121,7 @@ tk.Button(root, text="Delete Contacts", command=trigger_deletion).grid(row=3, co
 status_label = tk.Label(root, text = "", width = 30, anchor='center')
 status_label.grid(row=4, column=1, padx = 5, pady = 5)
 progress_bar = ttk.Progressbar(root, orient = 'horizontal', length = 300, mode = 'determinate')
-progress_bar.grid(row = 5, column = 1)
+progress_bar.grid(row = 5, column = 1, pady = 10)
 progress_bar['value'] = 0
 
 root.mainloop()
